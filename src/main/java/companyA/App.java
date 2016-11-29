@@ -5,6 +5,7 @@ import static com.mongodb.client.model.Filters.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
 import org.bson.Document;
@@ -20,11 +21,11 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Projections;
 import static com.mongodb.client.model.Sorts.descending;
-//import com.mongodb.client.model.Filters.exists; 
+
 
 public class App {
 	
-	static myMongoObject mmO = new myMongoObject();  //TODO: Once complete, move mmO to be passed, don't keep as static globabl
+	static myMongoObject mmO = new myMongoObject();  
 	static Scanner input = new Scanner(System.in);
 	
 	public static void main(String[] args) {
@@ -33,51 +34,58 @@ public class App {
 	
 	while(true)
 	{
+		  
 		System.out.println("Please select a function: ");
 		System.out.println("1: Load users from .csv file");
 		System.out.println("2: Set a user as inactive");
-		System.out.println("3: Display a specific user/employee");
 		System.out.println("0: Exit");
-		int choice = input.nextInt();
-			
-		switch(choice)
-		{
-		case 1:
-		{
-			System.out.println("Loading users from .csv file...");
-			loadCSV(mmO);
-			addToCollection(mmO);
-			break;
-		}
-		case 2:
-		{
-			System.out.println("Setting a user as inactive...");
-			try {
-				setInactive(mmO);
-			} catch (JsonParseException e) {
-				
-				e.printStackTrace();
-			} catch (JsonMappingException e) {
-				
-				e.printStackTrace();
-			} catch (IOException e) {
-				
-				e.printStackTrace();
+		try {
+			int choice = input.nextInt();
+			switch(choice)
+			{
+			case 1:
+			{
+				System.out.println("Loading users from .csv file...");
+				loadCSV(mmO);
+				addToCollection(mmO);
+				break;
 			}
-			break;
+			case 2:
+			{
+				
+				try {
+					setInactive(mmO);
+				} catch (JsonParseException e) {
+					
+					e.printStackTrace();
+				} catch (JsonMappingException e) {
+					
+					e.printStackTrace();
+				} catch (IOException e) {
+					
+					e.printStackTrace();
+				}
+				break;
+			}
+			
+			case 0:
+			{
+				System.out.println("Thanks for using Primrose software, goodbye!");
+				System.exit(0);
+			}
+			default:
+				System.out.println("Invalid input");
+				input.nextLine();
+				break;
+			}
 		}
-		//TODO: Make a case3/method for displaying a user/employee by ID
-		case 0:
+		catch (InputMismatchException e)
 		{
-			System.out.println("Thanks for using Primrose software, goodbye!");
-			System.exit(0);
-		}
-		default:
-			System.out.println("Invalid input");
-			break;
+			System.out.println("A number was not entered");
+			input.nextLine();
 		}
 		
-	}
+	}//end while
 		
 		
 		
@@ -93,8 +101,8 @@ public class App {
 		MongoDatabase db = MongoConnector.getInstance().getMongoDatabase();
 				
 		// instantiate a collection 
-		MongoCollection<Document> employeeCollection = db.getCollection("employees");
-		MongoCollection<Document> userCollection = db.getCollection("users"); 	
+		MongoCollection<Document> employeeCollection = db.getCollection("employee");
+		MongoCollection<Document> userCollection = db.getCollection("user"); 	
 		mmO.setEmployeeCollection(employeeCollection);
 		mmO.setUserCollection(userCollection);
 	}
@@ -104,10 +112,13 @@ public class App {
 	{
 		
 		//TODO: prompt the user for the path and extension of their own csv file as String (tenK)
-		String tenK = "src/main/java/companyA/testdataN10K.csv";
+		System.out.println("Please enter the path of the CSV file including the extension .csv:");
+		input.nextLine();
+		String tenK = input.nextLine();  //"src/main/java/companyA/testdataN10K.csv"
+		
 		ArrayList<HashMap<String, String>> hm2 = ReadMethods.createListFromCSV(tenK, ",");  //readIn list
 		
-		String[] dataOrder = {"firstName", "middleName", "lastName", "socialSecurityNumber", "dateOfBirth", "postalAddress", "phoneNumber", "hireDate"};	//this is correct data order
+		String[] dataOrder = {"firstName", "middleName", "lastName", "socialSecurityNumber", "dateOfBirth", "street", "city", "state", "zip", "phoneNumber", "hireDate"};	//this is correct data order
 		int nextIDAvail;
 		nextIDAvail = getNextId(0);
 		
@@ -126,14 +137,18 @@ public class App {
 			emp.setGivenName(row.get(dataOrder[0]) + row.get(dataOrder[1]) + row.get(dataOrder[2]));
 			emp.setSocialSecurityNumber(row.get(dataOrder[3]));
 			emp.setDob(row.get(dataOrder[4]));
-			
-			//String builtPostal = row.get(dataOrder[5]);  //correctly gets the entire postal address "1810 Eagle Lake Road SEALY Texas 22263"			
-			//emp.setPostalAddress(new PostalAddress(row.get(dataOrder[5])));
-			emp.setPhoneNumber(row.get(dataOrder[6]));
-			
+			PostalAddress address = new PostalAddress();
+			address.setStreet(row.get(dataOrder[5]));
+			address.setCity((row.get(dataOrder[6])));
+			address.setState(row.get(dataOrder[7]));
+			address.setZip(row.get(dataOrder[8]));
+			emp.setPostalAddress(address);
+			emp.setPhoneNumber(row.get(dataOrder[9]));
+			emp.setHireDate(row.get(dataOrder[10]));
+
 			mmO.getEmployeeList().add(emp);		
 		}
-		//return mmO;
+		
 	}
 	
 	
@@ -148,29 +163,27 @@ public class App {
 				employeeString = mapper.writeValueAsString(mmO.getEmployeeList().get(i));
 				
 				User user = getUser(mmO.getEmployeeList().get(i).getGivenName());	
-				user.setId(mmO.getEmployeeList().get(i).getId());   //this sets the user ID to be the corresponding value of the employeeID
+				user.setId(i);
 				user.setActiveUser(mmO.getEmployeeList().get(i).isActiveEmployee());  //this sets the user active to be the corresponding value of the employee active 
 				userString = mapper.writeValueAsString(user);
+					
 				
 				Document employeeDoc = new Document("id", i).append("employee", employeeString);  //employeeDoc holds all the values of employeeString 
-				System.out.println("employeeString: " +employeeString);  //employeeString all the values from the csv
 				mmO.getEmployeeCollection().insertOne(employeeDoc); //employeeDoc is what's loaded into the collection, collection is what's in mongo
 				
-				Document userDoc = new Document("id", i).append("employee", userString);
-				System.out.println("userString: " +userString);  //attributes are: id, objectId, givenName, userName, password, emailAddress, passwordExpiration, activeUser
+				
+				Document userDoc = Document.parse(userString);
 				mmO.getUserCollection().insertOne(userDoc);
 				
-				
+					
 				System.out.println();				
 			} catch (JsonProcessingException e) {
 				
 				e.printStackTrace();
 			}
 		}
-		
-		System.out.println(mmO.getEmployeeCollection().count());
-		System.out.println(mmO.getUserCollection().count());
-		//return mmO;	
+		System.out.println("Users/employees have been added to the database");
+		System.out.println();
 	}
 	
 	
@@ -178,18 +191,17 @@ public class App {
 	
 	
 	private static void setInactive(myMongoObject mmO) throws JsonParseException, JsonMappingException, IOException {
-		System.out.print("To set a user as INACTIVE, please enter the user/employee ID number: ");
+		System.out.print("To set a user as INACTIVE, please enter the user ID number: ");
 		int inactiveID = input.nextInt();
-		boolean makeInactive = true;
+		boolean makeInactive = false;
 		
 				
 		Bson filter = eq("id", inactiveID); //filter by matching id
 		Bson projection = Projections.exclude("_id"); //exclude the object id from the return
 				
 		//return an iterable cursor object
-		MongoCursor<Document> itr = mmO.getUserCollection().find(filter).projection(projection).iterator();  //removed .projection(projection)
-	
-		System.out.println(itr.hasNext());  //this is returning false
+		MongoCursor<Document> itr = mmO.getUserCollection().find(filter).projection(projection).iterator();  
+
 	
 		try
 		{
@@ -197,11 +209,19 @@ public class App {
 			{
 				Document cur = itr.next();
 				
-				if (cur.getInteger("id").equals(inactiveID)) {
+				if (cur.getInteger("id").equals(inactiveID)) 
+				{
 					ObjectMapper mapper = new ObjectMapper();
 					User user = mapper.readValue(cur.toJson(), User.class);
 					
-					mmO.getEmployeeCollection().findOneAndReplace(cur, new Document("id", inactiveID)
+					System.out.println();
+					System.out.println("Username: "+user.getUserName() +"\n"+ "Given name: " +user.getGivenName());
+					System.out.println();
+					System.out.print("Are you sure you want to set this user INACTIVE?  Re-enter user ID to confirm: ");
+					int inactiveID2 = input.nextInt();
+					if (inactiveID == inactiveID2)
+					{						
+						mmO.getUserCollection().findOneAndReplace(cur, new Document("id", inactiveID)
 							.append("givenName", user.getGivenName())
 							.append("userName", user.getUserName())
 							.append("password", user.getPassword())
@@ -210,10 +230,15 @@ public class App {
 							.append("activeUser", makeInactive)); 
 							
 					System.out.println("User has been set as inactive");
-				}
-				
+					}
+					else
+					{
+						System.out.println();
+						System.out.println("User IDs to inactivate do not match.  Returning you to main menu...");
+						System.out.println();
+					}
+				}		
 			}
-			
 		}
 		finally
 		{
@@ -226,7 +251,6 @@ public class App {
 	
 	
 	public static User getUser(String employee) {
-		   System.out.println("*********");
 	   User user = new User(employee, "TeamPrimrose!1");	  
 	   return user;
 	}
@@ -245,8 +269,6 @@ public class App {
         if (collection.count() > 0) {
             Document doc = collection.find(exists("id")).sort(descending("id")).first();
             
-
-            System.out.println(doc.toString());
             nextId = doc.getInteger("id");
             nextId++;
         }
