@@ -23,6 +23,12 @@ import com.mongodb.client.model.Projections;
 import static com.mongodb.client.model.Sorts.descending;
 
 
+/**
+ * @author Matt
+ *Requirement 1.0.0: The user is added to the database by an administrator.
+ *The admin app includes the functionality to add users and employees from a .csv
+ *file.  An administrator is also able to set a user as inactive using this tool.   
+ */
 public class App {
 	
 	static myMongoObject mmO = new myMongoObject();  
@@ -85,12 +91,12 @@ public class App {
 			input.nextLine();
 		}
 		
-	}//end while
-		
-		
-		
+	}
 	}
 	
+	/*
+	 * This method is run to set up the connection to the Mongo database
+	 */
 	private static void MongoSetup(myMongoObject mmO)
 	{
 
@@ -107,11 +113,12 @@ public class App {
 		mmO.setUserCollection(userCollection);
 	}
 	
-	
+	/*
+	 * This method is responsible for requesting the path of a csv file from the admin, 
+	 * and setting the employee attributes from the file.  
+	 */
 	private static void loadCSV(myMongoObject mmO)
 	{
-		
-		//TODO: prompt the user for the path and extension of their own csv file as String (tenK)
 		System.out.println("Please enter the path of the CSV file including the extension .csv:");
 		input.nextLine();
 		String tenK = input.nextLine();  //"src/main/java/companyA/testdataN10K.csv"
@@ -151,7 +158,10 @@ public class App {
 		
 	}
 	
-	
+	/*
+	 * This method is responsible for creating and inserting the Documents which 
+	 * are held within the Collection in the Mongo database.  
+	 */
 	private static void addToCollection(myMongoObject mmO)
 	{	
 		for (int i = 0; i < mmO.getEmployeeList().size()-1;i++) {
@@ -189,7 +199,10 @@ public class App {
 	
 	
 	
-	
+	/*
+	 * This method is responsible for setting a user as inactive. Note that this
+	 * requires the user to be identified by the user/employee ID number.  
+	 */
 	private static void setInactive(myMongoObject mmO) throws JsonParseException, JsonMappingException, IOException {
 		System.out.print("To set a user as INACTIVE, please enter the user ID number: ");
 		int inactiveID = input.nextInt();
